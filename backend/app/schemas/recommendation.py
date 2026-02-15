@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class YearRange(BaseModel):
@@ -39,5 +39,46 @@ class RecommendationRequest(BaseModel):
 
 
 class NarrowRequest(BaseModel):
+    feedback: str
+    keep_tmdb_ids: list[int] = []
+    reject_tmdb_ids: list[int] = []
+
+
+class ReactionRequest(BaseModel):
+    tmdb_id: int
+    positive: bool
+    reason: str | None = None
+
+
+class SelectionRequest(BaseModel):
+    tmdb_id: int
+
+
+class MovieSummary(BaseModel):
+    tmdb_id: int
+    title: str
+    year: str | None = None
+    genres: list[str] = []
+    vote_average: float = 0
+    runtime: int | None = None
+    poster_url: str | None = None
+    backdrop_url: str | None = None
+    overview: str = ""
+    directors: list[str] = []
+    cast: list[str] = []
+    match_score: float | None = None
+    rationale: str = ""
+
+
+class RecommendationResponse(BaseModel):
     session_id: str
-    choice: str
+    best_pick: MovieSummary
+    additional_picks: list[MovieSummary] = []
+    narrow_question: str | None = None
+    overlap_summary: str | None = None
+    model_used: str = ""
+
+
+class StreamStatus(BaseModel):
+    event: str
+    data: str
