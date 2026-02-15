@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,14 @@ import { AILoading } from "@/components/movie/ai-loading";
 import { HeroPick } from "@/components/movie/hero-pick";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieDetail } from "@/components/movie/movie-detail";
+import { NarrowDown } from "@/components/movie/narrow-down";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { BottomNav, DesktopNav } from "@/components/layout/navigation";
 import { usePreferencesStore } from "@/stores/preferences";
 import { useUIStore } from "@/stores/ui";
 import { recommend, users } from "@/lib/api";
 import { toast } from "sonner";
+import type { MovieSummary } from "@/types/api";
 
 const GENRES = [
   "Action", "Adventure", "Animation", "Comedy", "Crime",
@@ -30,6 +33,8 @@ const MOODS = [
 ];
 
 const STEPS = ["Genres", "Mood", "Details", "Results"];
+
+type FlowStep = "genres" | "mood" | "details" | "loading" | "results" | "narrow";
 
 const pageVariants = {
   enter: { opacity: 0, x: 40 },
@@ -51,8 +56,6 @@ export default function SoloPage() {
   } = usePreferencesStore();
 
   const {
-    currentStep,
-    setStep,
     recommendation,
     setRecommendation,
     selectedMovie,
@@ -61,9 +64,10 @@ export default function SoloPage() {
     closeDetail,
   } = useUIStore();
 
-  const stepIndex = STEPS.findIndex(
-    (s) => s.toLowerCase() === currentStep,
-  );
+  const [step, setStep] = useState<FlowStep>("genres");
+
+  const stepIndex =
+    step === "narrow" ? 3 : STEPS.findIndex((s) => s.toLowerCase() === step);
 
   async function handleSubmit() {
     setStep("loading");
@@ -98,12 +102,41 @@ export default function SoloPage() {
     }
   }
 
+  function handleNarrowDown() {
+    if (recommendation && recommendation.additional_picks.length > 0) {
+      setStep("narrow");
+    }
+  }
+
+  async function handleRefine(
+    keptIds: number[],
+    rejectedIds: number[],
+  ): Promise<MovieSummary | null> {
+    if (!recommendation) return null;
+    try {
+      const result = await recommend.refine(recommendation.session_id, {
+        feedback: "User narrowed down their picks via swipe.",
+        keep_tmdb_ids: keptIds,
+        reject_tmdb_ids: rejectedIds,
+      });
+      setRecommendation(result);
+      return result.best_pick;
+    } catch {
+      toast.error("Could not refine recommendations.");
+      return null;
+    }
+  }
+
+  function handleNarrowComplete() {
+    setStep("results");
+  }
+
   return (
     <>
       <DesktopNav />
 
       <div className="max-w-2xl mx-auto min-h-screen">
-        {currentStep !== "loading" && currentStep !== "results" && (
+        {step !== "loading" && step !== "results" && step !== "narrow" && (
           <div className="pt-4">
             <StepIndicator steps={STEPS.slice(0, 3)} current={stepIndex} />
           </div>
@@ -111,7 +144,7 @@ export default function SoloPage() {
 
         <AnimatePresence mode="wait">
           {/* Step 1: Genres */}
-          {currentStep === "genres" && (
+          {step === "genres" && (
             <motion.div
               key="genres"
               variants={pageVariants}
@@ -155,7 +188,7 @@ export default function SoloPage() {
           )}
 
           {/* Step 2: Mood */}
-          {currentStep === "mood" && (
+          {step === "mood" && (
             <motion.div
               key="mood"
               variants={pageVariants}
@@ -196,7 +229,7 @@ export default function SoloPage() {
           )}
 
           {/* Step 3: Details */}
-          {currentStep === "details" && (
+          {step === "details" && (
             <motion.div
               key="details"
               variants={pageVariants}
@@ -256,7 +289,7 @@ export default function SoloPage() {
           )}
 
           {/* Loading */}
-          {currentStep === "loading" && (
+          {step === "loading" && (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -267,8 +300,27 @@ export default function SoloPage() {
             </motion.div>
           )}
 
+          {/* Narrow Down */}
+          {step === "narrow" && recommendation && (
+            <motion.div
+              key="narrow"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <NarrowDown
+                movies={[
+                  recommendation.best_pick,
+                  ...recommendation.additional_picks,
+                ]}
+                onComplete={handleNarrowComplete}
+                onRefine={handleRefine}
+              />
+            </motion.div>
+          )}
+
           {/* Results */}
-          {currentStep === "results" && recommendation && (
+          {step === "results" && recommendation && (
             <motion.div
               key="results"
               initial={{ opacity: 0 }}
@@ -284,21 +336,34 @@ export default function SoloPage() {
               />
 
               {recommendation.additional_picks.length > 0 && (
-                <ScrollRow title="More Picks For You">
-                  {recommendation.additional_picks.map((movie, i) => (
-                    <MovieCard
-                      key={movie.tmdb_id}
-                      movie={movie}
-                      rank={i + 2}
-                      onClick={() => openDetail(movie)}
-                    />
-                  ))}
-                </ScrollRow>
+                <>
+                  <ScrollRow title="More Picks For You">
+                    {recommendation.additional_picks.map((movie, i) => (
+                      <MovieCard
+                        key={movie.tmdb_id}
+                        movie={movie}
+                        rank={i + 2}
+                        onClick={() => openDetail(movie)}
+                      />
+                    ))}
+                  </ScrollRow>
+
+                  {/* Narrow down CTA */}
+                  <div className="px-6">
+                    <Button
+                      variant="secondary"
+                      onClick={handleNarrowDown}
+                      className="w-full"
+                    >
+                      Can&apos;t decide? Narrow it down
+                    </Button>
+                  </div>
+                </>
               )}
 
               <div className="px-6 pb-8">
                 <Button
-                  variant="secondary"
+                  variant="ghost"
                   onClick={handleStartOver}
                   className="w-full"
                 >

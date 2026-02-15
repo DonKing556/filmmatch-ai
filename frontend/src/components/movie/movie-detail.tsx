@@ -5,18 +5,47 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { MatchScore } from "@/components/ui/match-score";
 import { cn, posterUrl, backdropUrl, formatRuntime } from "@/lib/utils";
+import { users } from "@/lib/api";
+import { toast } from "sonner";
 import type { MovieSummary } from "@/types/api";
+
+const STREAMING_SERVICES: Record<string, { label: string; color: string }> = {
+  netflix: { label: "Netflix", color: "#E50914" },
+  prime: { label: "Prime Video", color: "#00A8E1" },
+  disney: { label: "Disney+", color: "#113CCF" },
+  hulu: { label: "Hulu", color: "#1CE783" },
+  hbo: { label: "Max", color: "#002BE7" },
+  apple: { label: "Apple TV+", color: "#555555" },
+  peacock: { label: "Peacock", color: "#000000" },
+  paramount: { label: "Paramount+", color: "#0064FF" },
+};
 
 interface MovieDetailProps {
   movie: MovieSummary | null;
   open: boolean;
   onClose: () => void;
+  streamingServices?: string[];
 }
 
-export function MovieDetail({ movie, open, onClose }: MovieDetailProps) {
+export function MovieDetail({
+  movie,
+  open,
+  onClose,
+  streamingServices,
+}: MovieDetailProps) {
   if (!movie) return null;
 
   const backdrop = backdropUrl(movie.backdrop_url);
+
+  async function handleWatchlist() {
+    if (!movie) return;
+    try {
+      await users.addToWatchlist(movie.tmdb_id);
+      toast.success("Added to watchlist!");
+    } catch {
+      toast.error("Could not add to watchlist.");
+    }
+  }
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -94,6 +123,40 @@ export function MovieDetail({ movie, open, onClose }: MovieDetailProps) {
             </div>
           )}
 
+          {/* Where to Watch */}
+          {streamingServices && streamingServices.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-3">
+                Where to Watch
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {streamingServices.map((serviceId) => {
+                  const service = STREAMING_SERVICES[serviceId];
+                  if (!service) return null;
+                  return (
+                    <div
+                      key={serviceId}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-tertiary border border-glass-border"
+                    >
+                      <div
+                        className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold"
+                        style={{ backgroundColor: service.color }}
+                      >
+                        {service.label[0]}
+                      </div>
+                      <span className="text-xs font-medium text-text-secondary">
+                        {service.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-text-tertiary mt-2">
+                Availability may vary by region.
+              </p>
+            </div>
+          )}
+
           {/* Synopsis */}
           {movie.overview && (
             <div>
@@ -130,11 +193,11 @@ export function MovieDetail({ movie, open, onClose }: MovieDetailProps) {
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
-            <Button variant="primary" size="md" className="flex-1">
+            <Button variant="primary" size="md" className="flex-1" onClick={handleWatchlist}>
               Add to Watchlist
             </Button>
-            <Button variant="secondary" size="md">
-              Not Interested
+            <Button variant="secondary" size="md" onClick={onClose}>
+              Close
             </Button>
           </div>
         </div>

@@ -11,6 +11,8 @@ import { HeroPick } from "@/components/movie/hero-pick";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieDetail } from "@/components/movie/movie-detail";
 import { ScrollRow } from "@/components/ui/scroll-row";
+import { ShareCode } from "@/components/group/share-code";
+import { VoteRound } from "@/components/group/vote-round";
 import { BottomNav, DesktopNav } from "@/components/layout/navigation";
 import { useUIStore } from "@/stores/ui";
 import { recommend, users } from "@/lib/api";
@@ -29,7 +31,14 @@ const MOODS = [
   "Romantic", "Suspenseful", "Nostalgic", "Inspirational",
 ];
 
-type GroupStep = "setup" | "members" | "loading" | "results";
+type GroupStep =
+  | "setup"
+  | "share"
+  | "members"
+  | "waiting"
+  | "loading"
+  | "results"
+  | "voting";
 
 interface MemberEntry {
   name: string;
@@ -55,6 +64,10 @@ export default function GroupPage() {
   const [activeMember, setActiveMember] = useState(0);
   const [recommendation, setRecommendation] =
     useState<RecommendationResponse | null>(null);
+  const [groupCode] = useState(() =>
+    Math.random().toString(36).substring(2, 8).toUpperCase(),
+  );
+  const [groupId] = useState(() => crypto.randomUUID());
 
   function updateMember(index: number, patch: Partial<MemberEntry>) {
     setMembers((prev) =>
@@ -112,6 +125,21 @@ export default function GroupPage() {
     } catch {
       toast.error("Could not add to watchlist.");
     }
+  }
+
+  function handleVotesComplete(votes: Record<number, boolean>) {
+    const positiveIds = Object.entries(votes)
+      .filter(([, v]) => v)
+      .map(([id]) => Number(id));
+
+    if (recommendation && positiveIds.length > 0) {
+      const winner =
+        [recommendation.best_pick, ...recommendation.additional_picks].find(
+          (m) => m.tmdb_id === positiveIds[0],
+        ) ?? recommendation.best_pick;
+      toast.success(`Group picked: ${winner.title}!`);
+    }
+    setStep("results");
   }
 
   return (
@@ -183,20 +211,48 @@ export default function GroupPage() {
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={() => {
-                    setActiveMember(0);
-                    setStep("members");
-                  }}
+                  onClick={() => setStep("share")}
                   disabled={members.some((m) => !m.name.trim())}
                   className="flex-1"
                 >
-                  Set Preferences
+                  Continue
                 </Button>
               </div>
             </motion.div>
           )}
 
-          {/* Step 2: Member preferences */}
+          {/* Step 2: Share code */}
+          {step === "share" && (
+            <motion.div
+              key="share"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              className="px-6 py-8 space-y-6"
+            >
+              <div className="text-center">
+                <h1 className="text-2xl font-bold">Invite your crew</h1>
+                <p className="text-text-secondary mt-1">
+                  Share this code so others can join the session.
+                </p>
+              </div>
+
+              <ShareCode joinCode={groupCode} groupId={groupId} />
+
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setActiveMember(0);
+                  setStep("members");
+                }}
+                className="w-full"
+              >
+                Set Preferences
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Step 3: Member preferences */}
           {step === "members" && (
             <motion.div
               key="members"
@@ -274,7 +330,7 @@ export default function GroupPage() {
                 ) : (
                   <Button
                     variant="secondary"
-                    onClick={() => setStep("setup")}
+                    onClick={() => setStep("share")}
                   >
                     Back
                   </Button>
@@ -318,6 +374,24 @@ export default function GroupPage() {
             </motion.div>
           )}
 
+          {/* Voting */}
+          {step === "voting" && recommendation && (
+            <motion.div
+              key="voting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <VoteRound
+                movies={[
+                  recommendation.best_pick,
+                  ...recommendation.additional_picks,
+                ]}
+                onVotesComplete={handleVotesComplete}
+              />
+            </motion.div>
+          )}
+
           {/* Results */}
           {step === "results" && recommendation && (
             <motion.div
@@ -358,9 +432,20 @@ export default function GroupPage() {
                 </ScrollRow>
               )}
 
-              <div className="px-6 pb-8">
+              {/* Vote CTA */}
+              <div className="px-6">
                 <Button
                   variant="secondary"
+                  onClick={() => setStep("voting")}
+                  className="w-full"
+                >
+                  Vote on picks
+                </Button>
+              </div>
+
+              <div className="px-6 pb-8">
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     setRecommendation(null);
                     setStep("setup");
