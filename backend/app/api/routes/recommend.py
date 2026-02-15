@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
+from app.core.audit import log_event
 from app.core.deps import get_cache, get_optional_user, get_session_store
 from app.core.exceptions import FilmMatchError, NotFoundError
 from app.core.logging import get_logger
 from app.core.redis import RedisCache, SessionStore
+from app.core.sanitize import sanitize_user_message
 from app.db.models import User
 from app.schemas.recommendation import (
     NarrowRequest,
@@ -22,15 +24,27 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 @router.post("", response_model=RecommendationResponse)
 async def create_recommendation(
     request: RecommendationRequest,
+    req: Request,
     user: User | None = Depends(get_optional_user),
     cache: RedisCache = Depends(get_cache),
     session_store: SessionStore = Depends(get_session_store),
 ):
+    # Sanitize user free-text input before it reaches Claude
+    request.message = sanitize_user_message(request.message)
+
+    user_id = str(user.id) if user else "anonymous"
     logger.info(
         "recommendation_requested",
         mode=request.mode,
         user_count=len(request.users),
-        user_id=str(user.id) if user else "anonymous",
+        user_id=user_id,
+    )
+    log_event(
+        "recommendation.created",
+        user_id=user_id,
+        ip=req.client.host if req.client else None,
+        request_id=getattr(req.state, "request_id", None),
+        detail=f"mode={request.mode} users={len(request.users)}",
     )
     result = await get_recommendation(
         request, cache=cache, session_store=session_store

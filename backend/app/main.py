@@ -1,10 +1,14 @@
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.api.routes import auth, groups, movies, recommend, users
+from app.api.middleware.rate_limit import RateLimitMiddleware
+from app.api.middleware.request_id import RequestIDMiddleware
+from app.api.routes import auth, groups, movies, ops, recommend, users
 from app.core.config import settings
 from app.core.exceptions import FilmMatchError
 from app.core.logging import get_logger, setup_logging
@@ -14,9 +18,20 @@ from app.services.tmdb_service import tmdb_service
 logger = get_logger("app")
 
 
+def _init_sentry():
+    if settings.sentry_dsn:
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.environment,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+            send_default_pii=False,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
+    _init_sentry()
     logger.info("starting", environment=settings.environment)
     yield
     await tmdb_service.close()
@@ -31,7 +46,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS
+# Middleware (order matters — outermost first)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -65,12 +82,17 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(recommend.router, prefix="/api/v1")
 app.include_router(movies.router, prefix="/api/v1")
 app.include_router(groups.router, prefix="/api/v1")
+app.include_router(ops.router, prefix="/api/v1")
+
+
+# Prometheus metrics endpoint at /metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
 @app.get("/api/v1/health")
 async def health():
     return {
         "status": "ok",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "environment": settings.environment,
     }

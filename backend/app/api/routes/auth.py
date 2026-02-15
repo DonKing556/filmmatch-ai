@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit import log_event
 from app.core.deps import get_current_user
 from app.db.models import User
 from app.db.session import get_db
@@ -27,10 +28,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/magic-link")
-async def request_magic_link(request: MagicLinkRequest):
+async def request_magic_link(request: MagicLinkRequest, req: Request):
     token = create_magic_link_token(request.email)
-    # In production, send this via email. For now, return it directly.
     logger.info("magic_link_created", email=request.email)
+    log_event(
+        "auth.magic_link_created",
+        ip=req.client.host if req.client else None,
+        request_id=getattr(req.state, "request_id", None),
+        detail=request.email,
+    )
     return {
         "message": "Magic link created",
         "token": token,  # Remove in production — send via email instead
@@ -40,10 +46,17 @@ async def request_magic_link(request: MagicLinkRequest):
 @router.post("/verify", response_model=TokenResponse)
 async def verify_magic_link(
     request: MagicLinkVerifyRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
 ):
     email = verify_magic_link_token(request.token)
     user = await get_or_create_user(db, email=email, auth_provider="magic_link")
+    log_event(
+        "auth.login",
+        user_id=str(user.id),
+        ip=req.client.host if req.client else None,
+        request_id=getattr(req.state, "request_id", None),
+    )
     return create_token_pair(str(user.id))
 
 
@@ -59,7 +72,10 @@ async def refresh_token(
 
 
 @router.post("/logout")
-async def logout(user: User = Depends(get_current_user)):
-    # With stateless JWTs, logout is handled client-side by discarding tokens.
-    # For enhanced security, we could add token to a Redis blacklist.
+async def logout(req: Request, user: User = Depends(get_current_user)):
+    log_event(
+        "auth.logout",
+        user_id=str(user.id),
+        request_id=getattr(req.state, "request_id", None),
+    )
     return {"message": "Logged out"}
