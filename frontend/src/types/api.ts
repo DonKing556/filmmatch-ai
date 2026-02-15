@@ -16,11 +16,22 @@ export interface UserProfile {
   name: string;
   likes_genres: string[];
   dislikes_genres: string[];
+  dealbreakers: string[];
   favorite_actors: string[];
   favorite_directors: string[];
   year_range?: YearRange | null;
   mood: string[];
   constraints?: Constraints | null;
+}
+
+export interface TasteProfile {
+  user_id: string;
+  genre_affinities: { genre: string; score: number; interactions: number }[];
+  preferred_decades: string[];
+  top_directors: string[];
+  top_actors: string[];
+  avg_rating: number | null;
+  total_interactions: number;
 }
 
 export interface Context {

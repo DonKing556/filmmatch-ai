@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.deps import get_current_user
+from app.core.deps import get_cache, get_current_user
+from app.core.redis import RedisCache
 from app.db.models import User, UserPreferences, WatchHistory
 from app.db.session import get_db
 from app.schemas.auth import UserResponse
 from app.schemas.user import PreferencesUpdate, WatchHistoryItem, WatchlistAdd
+from app.services.taste_profile import compute_taste_profile
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -82,6 +84,18 @@ async def add_to_watchlist(
     )
     db.add(entry)
     return {"message": "Added to watchlist"}
+
+
+@router.get("/me/taste-profile")
+async def get_taste_profile(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    cache: RedisCache = Depends(get_cache),
+):
+    profile = await compute_taste_profile(
+        user_id=str(user.id), db=db, cache=cache
+    )
+    return profile.to_dict()
 
 
 @router.delete("/me/watchlist/{tmdb_id}")

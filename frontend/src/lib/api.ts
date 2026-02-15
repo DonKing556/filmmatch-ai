@@ -12,6 +12,7 @@ import type {
   GroupMemberPreferences,
   TrendingMovie,
   MovieSummary,
+  TasteProfile,
 } from "@/types/api";
 
 const BASE = "/api";
@@ -107,6 +108,9 @@ export const users = {
       method: "DELETE",
     });
   },
+  tasteProfile() {
+    return request<TasteProfile>("/users/taste-profile");
+  },
 };
 
 // ─── Recommendations ───
@@ -135,6 +139,20 @@ export const recommend = {
       method: "POST",
       body: JSON.stringify(req),
     });
+  },
+  receipt(sessionId: string) {
+    return request<{
+      session_id: string;
+      mode: string;
+      members: string[];
+      movies_considered: number;
+      movies_liked: number;
+      movies_passed: number;
+      final_pick_tmdb_id: number | null;
+      complexity_tier: string;
+      turn_count: number;
+      shareable_text: string;
+    }>(`/recommend/${sessionId}/receipt`);
   },
 };
 

@@ -10,6 +10,7 @@ interface PreferencesState {
   // Actions
   setGenres: (genres: string[]) => void;
   setDislikedGenres: (genres: string[]) => void;
+  setDealbreakers: (items: string[]) => void;
   setMood: (moods: string[]) => void;
   setFreeText: (text: string) => void;
   setContext: (ctx: Partial<Context>) => void;
@@ -24,6 +25,7 @@ const defaultProfile: UserProfile = {
   name: "",
   likes_genres: [],
   dislikes_genres: [],
+  dealbreakers: [],
   favorite_actors: [],
   favorite_directors: [],
   mood: [],
@@ -42,6 +44,8 @@ export const usePreferencesStore = create<PreferencesState>((set) => ({
     set((s) => ({ profile: { ...s.profile, likes_genres: genres } })),
   setDislikedGenres: (genres) =>
     set((s) => ({ profile: { ...s.profile, dislikes_genres: genres } })),
+  setDealbreakers: (items) =>
+    set((s) => ({ profile: { ...s.profile, dealbreakers: items } })),
   setMood: (moods) =>
     set((s) => ({ profile: { ...s.profile, mood: moods } })),
   setFreeText: (text) => set({ freeText: text }),

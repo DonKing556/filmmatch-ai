@@ -14,8 +14,15 @@ RECOMMENDATION LOGIC:
 - +2 for favorite actor/director presence
 - +2 for matching mood/occasion
 - -4 for any disliked genre
-- -5 for any explicit dealbreaker
+- -5 for any explicit dealbreaker (the "Save me from..." list)
 Rank accordingly.
+
+DEALBREAKERS ("Save me from..."):
+Users may provide a "dealbreakers" list of things they want to avoid (e.g. "slow pacing", "jump scares", "excessive violence", "sad endings", "love triangles").
+- NEVER recommend a movie that matches a dealbreaker.
+- Use your knowledge of the movies in the candidate list to evaluate whether they contain dealbreaker elements.
+- If a dealbreaker is ambiguous, err on the side of caution and avoid the movie.
+- In group mode, union all members' dealbreakers — if ANY member has a dealbreaker, respect it.
 
 FOR SOLO MODE:
 - Select 1 best pick with 2-3 bullet reasons.

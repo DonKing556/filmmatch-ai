@@ -96,3 +96,62 @@ async def select_movie(
         tmdb_id=request.tmdb_id,
     )
     return {"message": "Selection recorded", "tmdb_id": request.tmdb_id}
+
+
+@router.get("/{session_id}/receipt")
+async def get_decision_receipt(
+    session_id: str,
+    session_store: SessionStore = Depends(get_session_store),
+):
+    """Generate a shareable decision receipt for a completed session."""
+    session_data = await session_store.get(session_id)
+    if session_data is None:
+        raise NotFoundError("Session", session_id)
+
+    prefs = session_data.get("preferences", {})
+    users_data = prefs.get("users", [])
+    member_names = [u.get("name", "Someone") for u in users_data]
+    mode = prefs.get("mode", "solo")
+
+    presented = session_data.get("presented_tmdb_ids", [])
+    final = session_data.get("final_selection")
+    reactions = session_data.get("reactions", [])
+    complexity = session_data.get("complexity", {})
+
+    liked = [r["tmdb_id"] for r in reactions if r.get("positive")]
+    passed = [r["tmdb_id"] for r in reactions if not r.get("positive")]
+
+    return {
+        "session_id": session_id,
+        "mode": mode,
+        "members": member_names,
+        "movies_considered": len(presented),
+        "movies_liked": len(liked),
+        "movies_passed": len(passed),
+        "final_pick_tmdb_id": final,
+        "complexity_tier": complexity.get("tier", "simple"),
+        "turn_count": session_data.get("turn_count", 1),
+        "shareable_text": _build_share_text(
+            mode, member_names, final, len(presented)
+        ),
+    }
+
+
+def _build_share_text(
+    mode: str, members: list[str], final_tmdb_id: int | None, considered: int
+) -> str:
+    if mode == "group":
+        names = " & ".join(members[:3])
+        if len(members) > 3:
+            names += f" + {len(members) - 3} more"
+        base = f"{names} used FilmMatch AI to pick their movie night!"
+    else:
+        base = "I found my perfect movie with FilmMatch AI!"
+
+    stats = f"Considered {considered} movies"
+    if final_tmdb_id:
+        stats += " and found the one."
+    else:
+        stats += "."
+
+    return f"{base} {stats}"

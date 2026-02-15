@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="FilmMatch AI",
     description="AI-powered movie recommendation engine — solo or with friends",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 

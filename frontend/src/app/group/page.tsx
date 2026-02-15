@@ -43,12 +43,14 @@ type GroupStep =
 interface MemberEntry {
   name: string;
   likes_genres: string[];
+  dealbreakers: string[];
   mood: string[];
 }
 
 const emptyMember = (): MemberEntry => ({
   name: "",
   likes_genres: [],
+  dealbreakers: [],
   mood: [],
 });
 
@@ -101,6 +103,7 @@ export default function GroupPage() {
         name: m.name,
         likes_genres: m.likes_genres,
         dislikes_genres: [],
+        dealbreakers: m.dealbreakers,
         favorite_actors: [],
         favorite_directors: [],
         mood: m.mood,

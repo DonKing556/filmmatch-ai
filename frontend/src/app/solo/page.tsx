@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChipGroup } from "@/components/ui/chip";
 import { Textarea } from "@/components/ui/input";
 import { StepIndicator } from "@/components/ui/step-indicator";
+import { DealbreakerInput } from "@/components/ui/dealbreaker-input";
 import { AILoading } from "@/components/movie/ai-loading";
 import { HeroPick } from "@/components/movie/hero-pick";
 import { MovieCard } from "@/components/movie/movie-card";
@@ -50,6 +51,7 @@ export default function SoloPage() {
     freeText,
     setGenres,
     setMood,
+    setDealbreakers,
     setFreeText,
     setContext,
     reset,
@@ -245,6 +247,11 @@ export default function SoloPage() {
                   Fine-tune your recommendation or just hit &quot;Find My Movie&quot;.
                 </p>
               </div>
+
+              <DealbreakerInput
+                selected={profile.dealbreakers}
+                onChange={setDealbreakers}
+              />
 
               <Textarea
                 label="Tell us more (optional)"

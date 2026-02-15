@@ -17,6 +17,7 @@ class UserProfile(BaseModel):
     name: str
     likes_genres: list[str] = []
     dislikes_genres: list[str] = []
+    dealbreakers: list[str] = []  # "Save me from..." e.g. ["slow pacing", "jump scares"]
     favorite_actors: list[str] = []
     favorite_directors: list[str] = []
     year_range: YearRange | None = None
