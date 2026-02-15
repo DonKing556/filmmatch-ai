@@ -135,6 +135,18 @@ export const users = {
   tasteProfile() {
     return request<TasteProfile>("/users/taste-profile");
   },
+  rateMovie(tmdbId: number, rating: number) {
+    return request<{ message: string }>(`/users/me/watchlist/${tmdbId}/rate`, {
+      method: "PATCH",
+      body: JSON.stringify({ rating, status: "watched" }),
+    });
+  },
+  submitFeedback(type: string, value: number, comment?: string, sessionId?: string) {
+    return request<{ message: string }>("/users/me/feedback", {
+      method: "POST",
+      body: JSON.stringify({ type, value, comment, session_id: sessionId }),
+    });
+  },
 };
 
 // ─── Recommendations ───

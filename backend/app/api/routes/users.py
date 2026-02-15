@@ -4,10 +4,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_cache, get_current_user
 from app.core.redis import RedisCache
-from app.db.models import User, UserPreferences, WatchHistory
+from app.core.logging import get_logger
+from app.db.models import AnalyticsEvent, User, UserPreferences, WatchHistory
+
+logger = get_logger("users_routes")
 from app.db.session import get_db
 from app.schemas.auth import UserResponse
-from app.schemas.user import PreferencesUpdate, WatchHistoryItem, WatchlistAdd
+from app.schemas.user import (
+    FeedbackSubmit,
+    PreferencesUpdate,
+    WatchHistoryItem,
+    WatchlistAdd,
+    WatchRating,
+)
 from app.services.taste_profile import compute_taste_profile
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -115,3 +124,62 @@ async def remove_from_watchlist(
     if entry:
         await db.delete(entry)
     return {"message": "Removed from watchlist"}
+
+
+@router.patch("/me/watchlist/{tmdb_id}/rate")
+async def rate_watched_movie(
+    tmdb_id: int,
+    request: WatchRating,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Rate a movie after watching it (1-5 stars)."""
+    result = await db.execute(
+        select(WatchHistory).where(
+            WatchHistory.user_id == user.id,
+            WatchHistory.tmdb_id == tmdb_id,
+        )
+    )
+    entry = result.scalar_one_or_none()
+
+    if entry:
+        entry.rating = max(1, min(5, request.rating))
+        entry.status = request.status
+    else:
+        entry = WatchHistory(
+            user_id=user.id,
+            tmdb_id=tmdb_id,
+            status=request.status,
+            rating=max(1, min(5, request.rating)),
+        )
+        db.add(entry)
+
+    logger.info("movie_rated", user_id=str(user.id), tmdb_id=tmdb_id, rating=request.rating)
+    return {"message": "Rating recorded", "rating": entry.rating}
+
+
+@router.post("/me/feedback")
+async def submit_feedback(
+    request: FeedbackSubmit,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit general feedback (NPS survey, satisfaction rating)."""
+    event = AnalyticsEvent(
+        event_type=f"feedback.{request.type}",
+        user_id=user.id,
+        session_id=request.session_id,
+        properties={
+            "value": request.value,
+            "comment": request.comment,
+        },
+    )
+    db.add(event)
+
+    logger.info(
+        "feedback_submitted",
+        user_id=str(user.id),
+        type=request.type,
+        value=request.value,
+    )
+    return {"message": "Feedback recorded"}

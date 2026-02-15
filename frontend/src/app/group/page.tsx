@@ -17,6 +17,7 @@ import { BottomNav, DesktopNav } from "@/components/layout/navigation";
 import { useUIStore } from "@/stores/ui";
 import { recommend, users } from "@/lib/api";
 import { toast } from "sonner";
+import { analytics } from "@/lib/analytics";
 import type { RecommendationResponse, UserProfile } from "@/types/api";
 
 const GENRES = [
@@ -98,6 +99,7 @@ export default function GroupPage() {
 
   async function handleSubmit() {
     setStep("loading");
+    analytics.recommendationRequested("group", members.reduce((s, m) => s + m.likes_genres.length, 0));
     try {
       const userProfiles: UserProfile[] = members.map((m) => ({
         name: m.name,
@@ -114,6 +116,7 @@ export default function GroupPage() {
         users: userProfiles,
       });
       setRecommendation(result);
+      analytics.recommendationViewed(result.session_id, 1 + result.additional_picks.length);
       setStep("results");
     } catch {
       toast.error("Something went wrong. Please try again.");

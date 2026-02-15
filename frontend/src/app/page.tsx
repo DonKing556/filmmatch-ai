@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { MovieCard } from "@/components/movie/movie-card";
 import { MovieCardSkeleton } from "@/components/ui/skeleton";
+import { Footer } from "@/components/layout/footer";
 import { BottomNav, DesktopNav } from "@/components/layout/navigation";
 import { useUIStore } from "@/stores/ui";
 import { movies } from "@/lib/api";
@@ -435,6 +436,8 @@ export default function HomePage() {
           </Button>
         </motion.div>
       </section>
+
+      <Footer />
 
       <MovieDetail
         movie={selectedMovie}

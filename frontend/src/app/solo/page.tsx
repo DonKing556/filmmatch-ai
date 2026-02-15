@@ -19,6 +19,7 @@ import { usePreferencesStore } from "@/stores/preferences";
 import { useUIStore } from "@/stores/ui";
 import { recommend, users } from "@/lib/api";
 import { toast } from "sonner";
+import { analytics } from "@/lib/analytics";
 import type { MovieSummary } from "@/types/api";
 
 const GENRES = [
@@ -73,6 +74,7 @@ export default function SoloPage() {
 
   async function handleSubmit() {
     setStep("loading");
+    analytics.recommendationRequested("solo", profile.likes_genres.length);
 
     try {
       const result = await recommend.create({
@@ -82,6 +84,7 @@ export default function SoloPage() {
         message: freeText || undefined,
       });
       setRecommendation(result);
+      analytics.recommendationViewed(result.session_id, 1 + result.additional_picks.length);
       setStep("results");
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -98,6 +101,7 @@ export default function SoloPage() {
   async function handleWatchlist(tmdbId: number) {
     try {
       await users.addToWatchlist(tmdbId);
+      analytics.watchlistAdded(tmdbId);
       toast.success("Added to watchlist!");
     } catch {
       toast.error("Could not add to watchlist.");
