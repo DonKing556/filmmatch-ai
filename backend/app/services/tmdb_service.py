@@ -73,18 +73,40 @@ class TMDBService:
         if self._client and not self._client.is_closed:
             await self._client.aclose()
 
-    async def _get(self, endpoint: str, params: dict | None = None) -> dict:
+    async def _get(self, endpoint: str, params: dict | None = None, retries: int = 2) -> dict:
         client = await self._get_client()
-        try:
-            response = await client.get(endpoint, params=params or {})
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            logger.error("tmdb_api_error", endpoint=endpoint, status=e.response.status_code)
-            raise ExternalServiceError("TMDB", f"HTTP {e.response.status_code}")
-        except httpx.RequestError as e:
-            logger.error("tmdb_connection_error", endpoint=endpoint, error=str(e))
-            raise ExternalServiceError("TMDB", "Connection failed")
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            try:
+                response = await client.get(endpoint, params=params or {})
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    "tmdb_api_error",
+                    endpoint=endpoint,
+                    status=e.response.status_code,
+                    attempt=attempt + 1,
+                )
+                # Don't retry client errors (4xx)
+                if e.response.status_code < 500:
+                    raise ExternalServiceError("TMDB", f"HTTP {e.response.status_code}")
+                last_error = e
+            except httpx.RequestError as e:
+                logger.error(
+                    "tmdb_connection_error",
+                    endpoint=endpoint,
+                    error=str(e),
+                    attempt=attempt + 1,
+                )
+                last_error = e
+
+            # Brief back-off before retry
+            if attempt < retries:
+                import asyncio
+                await asyncio.sleep(0.5 * (attempt + 1))
+
+        raise ExternalServiceError("TMDB", f"Failed after {retries + 1} attempts: {last_error}")
 
     def _resolve_genre_ids(self, genre_names: list[str]) -> list[int]:
         ids = []

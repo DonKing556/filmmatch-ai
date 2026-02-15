@@ -10,9 +10,10 @@ interface ModalProps {
   children: React.ReactNode;
   className?: string;
   fullscreen?: boolean;
+  ariaLabel?: string;
 }
 
-export function Modal({ open, onClose, children, className, fullscreen }: ModalProps) {
+export function Modal({ open, onClose, children, className, fullscreen, ariaLabel }: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <AnimatePresence>
@@ -27,7 +28,7 @@ export function Modal({ open, onClose, children, className, fullscreen }: ModalP
                 className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
               />
             </Dialog.Overlay>
-            <Dialog.Content asChild>
+            <Dialog.Content asChild aria-label={ariaLabel ?? "Dialog"}>
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}

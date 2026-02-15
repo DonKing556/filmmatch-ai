@@ -18,7 +18,12 @@ from dataclasses import dataclass, field
 import pytest
 
 from app.services.ai_service import _build_candidate_prompt, _parse_ai_response, compute_complexity
-from app.schemas.recommendation import RecommendationResponse
+from app.schemas.recommendation import (
+    Context,
+    RecommendationRequest,
+    RecommendationResponse,
+    UserProfile,
+)
 from app.services.tmdb_service import MovieCandidate
 from tests.quality.golden_cases import GOLDEN_CASES, GoldenCase
 
@@ -183,14 +188,16 @@ class TestComplexityScoring:
         assert result.tier == "simple"
         assert "haiku" in result.model
 
-    def test_two_users_routes_to_sonnet(self):
+    def test_two_users_stays_simple(self):
+        # 2 users = score 2, still "simple" tier (Haiku)
         req = RecommendationRequest(
             mode="group",
             users=[UserProfile(name="A"), UserProfile(name="B")],
         )
         result = compute_complexity(req)
-        assert result.tier == "moderate"
-        assert "sonnet" in result.model
+        assert result.score == 2
+        assert result.tier == "simple"
+        assert "haiku" in result.model
 
     def test_large_group_routes_to_opus(self):
         req = RecommendationRequest(

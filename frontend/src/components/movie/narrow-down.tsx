@@ -196,9 +196,10 @@ export function NarrowDown({ movies, onComplete, onRefine }: NarrowDownProps) {
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => handleButtonSwipe("left")}
+          aria-label={`Pass on ${currentCard?.title ?? "this movie"}`}
           className="w-14 h-14 rounded-full bg-error/10 border border-error/20 flex items-center justify-center text-error"
         >
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </motion.button>
@@ -206,16 +207,20 @@ export function NarrowDown({ movies, onComplete, onRefine }: NarrowDownProps) {
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={() => handleButtonSwipe("right")}
+          aria-label={`Keep ${currentCard?.title ?? "this movie"}`}
           className="w-14 h-14 rounded-full bg-success/10 border border-success/20 flex items-center justify-center text-success"
         >
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </motion.button>
       </div>
 
       {/* Progress */}
-      <div className="flex gap-1">
+      <p className="sr-only" aria-live="polite">
+        {deck.length} movies remaining, {kept.length} kept, {rejected.length} passed
+      </p>
+      <div className="flex gap-1" aria-hidden="true">
         {movies.map((m) => {
           const isKept = kept.some((k) => k.tmdb_id === m.tmdb_id);
           const isRejected = rejected.some((r) => r.tmdb_id === m.tmdb_id);

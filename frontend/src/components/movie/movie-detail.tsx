@@ -48,7 +48,7 @@ export function MovieDetail({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} ariaLabel={`${movie.title} details`}>
       <div className="relative">
         {/* Backdrop */}
         {backdrop && (

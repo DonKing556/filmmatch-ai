@@ -16,6 +16,8 @@ export function Chip({ label, selected, onClick, size = "md", icon }: ChipProps)
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
+      role="option"
+      aria-selected={selected}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full font-medium transition-all duration-200",
         "border",
@@ -25,7 +27,7 @@ export function Chip({ label, selected, onClick, size = "md", icon }: ChipProps)
           : "bg-bg-tertiary border-glass-border text-text-secondary hover:text-text-primary hover:border-text-tertiary"
       )}
     >
-      {icon}
+      {icon && <span aria-hidden="true">{icon}</span>}
       {label}
     </motion.button>
   );
@@ -52,7 +54,7 @@ export function ChipGroup({ options, selected, onChange, multiple = true }: Chip
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2" role="listbox" aria-multiselectable={multiple}>
       {options.map((option) => (
         <Chip
           key={option}

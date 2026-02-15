@@ -473,31 +473,63 @@ async def get_recommendation(
         complexity_reasons=complexity.reasons,
     )
 
-    # Step 3: Call Claude with prompt caching on system prompt
+    # Step 3: Call Claude with prompt caching on system prompt (with retry)
     client = _get_client()
-    response = await client.messages.create(
-        model=model,
-        max_tokens=1500,
-        system=_get_system_prompt_with_cache_control(),
-        messages=[{"role": "user", "content": prompt}],
-    )
+    raw_text = None
+    total_tokens = 0
+    ai_failed = False
 
-    raw_text = response.content[0].text
-    total_tokens = response.usage.input_tokens + response.usage.output_tokens
+    for attempt in range(3):
+        try:
+            response = await client.messages.create(
+                model=model,
+                max_tokens=1500,
+                system=_get_system_prompt_with_cache_control(),
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw_text = response.content[0].text
+            total_tokens = response.usage.input_tokens + response.usage.output_tokens
 
-    # Log cache savings if available
-    cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
-    cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
-    if cache_creation or cache_read:
-        logger.info(
-            "prompt_cache_stats",
-            cache_creation_tokens=cache_creation,
-            cache_read_tokens=cache_read,
-            savings_pct=round(cache_read / max(response.usage.input_tokens, 1) * 100, 1),
+            # Log cache savings if available
+            cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
+            cache_read = getattr(response.usage, "cache_read_input_tokens", 0) or 0
+            if cache_creation or cache_read:
+                logger.info(
+                    "prompt_cache_stats",
+                    cache_creation_tokens=cache_creation,
+                    cache_read_tokens=cache_read,
+                    savings_pct=round(cache_read / max(response.usage.input_tokens, 1) * 100, 1),
+                )
+            break
+        except Exception as e:
+            logger.error(
+                "claude_api_error",
+                model=model,
+                attempt=attempt + 1,
+                error=str(e),
+            )
+            if attempt < 2:
+                import asyncio
+                await asyncio.sleep(1.0 * (attempt + 1))
+            else:
+                ai_failed = True
+
+    # Step 4: Parse and validate response (or fallback)
+    if ai_failed or raw_text is None:
+        logger.warning("claude_fallback_activated", candidates=len(candidates))
+        sorted_candidates = sorted(candidates, key=lambda c: c.vote_average, reverse=True)
+        result = RecommendationResponse(
+            session_id=session_id,
+            best_pick=_candidate_to_summary(sorted_candidates[0], match_score=8.0, rationale="Top rated match (AI temporarily unavailable)"),
+            additional_picks=[
+                _candidate_to_summary(c, match_score=round(7.0 - i * 0.5, 1), rationale="Highly rated match")
+                for i, c in enumerate(sorted_candidates[1:6])
+            ],
+            narrow_question="Would you prefer something more action-packed or more character-driven?",
+            model_used=f"{model} (fallback)",
         )
-
-    # Step 4: Parse and validate response
-    result = _parse_ai_response(raw_text, candidates, session_id, model)
+    else:
+        result = _parse_ai_response(raw_text, candidates, session_id, model)
 
     # Store in pattern cache for future identical requests
     if cache:

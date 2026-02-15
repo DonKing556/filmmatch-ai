@@ -29,9 +29,9 @@ export function AILoading() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 px-6">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 px-6" role="status" aria-label="Loading recommendations">
       {/* Animated constellation */}
-      <div className="relative w-48 h-48">
+      <div className="relative w-48 h-48" aria-hidden="true">
         {Array.from({ length: 12 }).map((_, i) => {
           const angle = (i / 12) * Math.PI * 2;
           const radius = 60 + (i % 3) * 20;
@@ -102,13 +102,21 @@ export function AILoading() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           className="text-lg text-text-secondary text-center"
+          aria-live="polite"
         >
           {PHASES[phase]?.text}
         </motion.p>
       </AnimatePresence>
 
       {/* Progress bar */}
-      <div className="w-64 h-1 rounded-full bg-bg-tertiary overflow-hidden">
+      <div
+        className="w-64 h-1 rounded-full bg-bg-tertiary overflow-hidden"
+        role="progressbar"
+        aria-valuenow={Math.round(((phase + 1) / PHASES.length) * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Loading progress"
+      >
         <motion.div
           className="h-full bg-gradient-to-r from-accent to-accent-secondary rounded-full"
           initial={{ width: "0%" }}

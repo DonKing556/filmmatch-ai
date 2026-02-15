@@ -45,8 +45,15 @@ export function MatchScore({ score, size = "md", animate = true }: MatchScorePro
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", s.box)}>
-      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
+    <div
+      className={cn("relative inline-flex items-center justify-center", s.box)}
+      role="meter"
+      aria-valuenow={score}
+      aria-valuemin={0}
+      aria-valuemax={10}
+      aria-label={`Match score: ${score} out of 10`}
+    >
+      <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80" aria-hidden="true">
         <circle
           cx="40" cy="40" r={s.r}
           fill="none"

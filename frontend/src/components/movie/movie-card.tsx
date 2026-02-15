@@ -12,9 +12,11 @@ interface MovieCardProps {
   onClick?: () => void;
   rank?: number;
   className?: string;
+  /** Set true for the first few visible cards to prioritize LCP. */
+  priority?: boolean;
 }
 
-export function MovieCard({ movie, onClick, rank, className }: MovieCardProps) {
+export function MovieCard({ movie, onClick, rank, className, priority = false }: MovieCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -27,7 +29,13 @@ export function MovieCard({ movie, onClick, rank, className }: MovieCardProps) {
       )}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
+      onFocus={() => setIsHovered(true)}
+      onBlur={() => setIsHovered(false)}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); }}}
+      tabIndex={0}
+      role="button"
+      aria-label={`${movie.title}${movie.year ? ` (${movie.year})` : ""}${movie.match_score != null ? `, match score ${movie.match_score} out of 10` : ""}`}
       whileHover={{ scale: 1.05, zIndex: 10 }}
       transition={{ duration: 0.2 }}
     >
@@ -39,6 +47,8 @@ export function MovieCard({ movie, onClick, rank, className }: MovieCardProps) {
           fill
           sizes="(max-width: 640px) 160px, (max-width: 768px) 180px, 200px"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
+          priority={priority}
+          loading={priority ? "eager" : "lazy"}
         />
 
         {/* Gradient overlay on hover */}

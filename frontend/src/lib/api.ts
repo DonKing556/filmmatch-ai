@@ -56,6 +56,30 @@ async function request<T>(
   return res.json();
 }
 
+/** Retry a request up to `retries` times with exponential backoff. */
+async function requestWithRetry<T>(
+  path: string,
+  options: RequestInit = {},
+  retries = 2,
+): Promise<T> {
+  let lastError: Error | undefined;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await request<T>(path, options);
+    } catch (err) {
+      lastError = err as Error;
+      // Don't retry client errors (4xx)
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+        throw err;
+      }
+      if (i < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ─── Auth ───
 
 export const auth = {
@@ -117,13 +141,13 @@ export const users = {
 
 export const recommend = {
   create(req: RecommendationRequest) {
-    return request<RecommendationResponse>("/recommend/create", {
+    return requestWithRetry<RecommendationResponse>("/recommend/create", {
       method: "POST",
       body: JSON.stringify(req),
     });
   },
   refine(sessionId: string, req: NarrowRequest) {
-    return request<RecommendationResponse>(
+    return requestWithRetry<RecommendationResponse>(
       `/recommend/${sessionId}/refine`,
       { method: "POST", body: JSON.stringify(req) },
     );

@@ -40,12 +40,14 @@ def test_select_model_solo():
 
 
 def test_select_model_group():
+    # 2 users = score 2, still "simple" tier → Haiku
+    # Need 3+ users to hit "moderate" tier → Sonnet
     req = RecommendationRequest(
         mode="group",
         users=[UserProfile(name="Mike"), UserProfile(name="Sarah")],
     )
     model = select_model(req)
-    assert "sonnet" in model
+    assert "haiku" in model
 
 
 def test_build_candidate_prompt():

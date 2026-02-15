@@ -34,14 +34,30 @@ export function ScrollRow({ title, children, className }: ScrollRowProps) {
     emblaApi.on("init", onSelect);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      scrollNext();
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      scrollPrev();
+    }
+  }
+
   return (
-    <div className={cn("relative group", className)}>
+    <section className={cn("relative group", className)} aria-label={title ?? "Movie list"}>
       {title && (
         <h2 className="text-xl font-semibold text-text-primary mb-4 px-6">
           {title}
         </h2>
       )}
-      <div className="overflow-hidden" ref={emblaRef}>
+      <div
+        className="overflow-hidden"
+        ref={emblaRef}
+        role="region"
+        aria-roledescription="carousel"
+        onKeyDown={handleKeyDown}
+      >
         <div className="flex gap-3 px-6">{children}</div>
       </div>
 
@@ -53,12 +69,12 @@ export function ScrollRow({ title, children, className }: ScrollRowProps) {
             "absolute left-0 top-1/2 -translate-y-1/2 z-10",
             "w-12 h-full bg-gradient-to-r from-bg-primary/80 to-transparent",
             "flex items-center justify-start pl-2",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
             "text-text-primary hover:text-white"
           )}
           aria-label="Scroll left"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
@@ -70,16 +86,16 @@ export function ScrollRow({ title, children, className }: ScrollRowProps) {
             "absolute right-0 top-1/2 -translate-y-1/2 z-10",
             "w-12 h-full bg-gradient-to-l from-bg-primary/80 to-transparent",
             "flex items-center justify-end pr-2",
-            "opacity-0 group-hover:opacity-100 transition-opacity",
+            "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
             "text-text-primary hover:text-white"
           )}
           aria-label="Scroll right"
         >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       )}
-    </div>
+    </section>
   );
 }

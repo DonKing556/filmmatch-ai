@@ -1,17 +1,25 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollRow } from "@/components/ui/scroll-row";
 import { MovieCard } from "@/components/movie/movie-card";
-import { MovieDetail } from "@/components/movie/movie-detail";
 import { MovieCardSkeleton } from "@/components/ui/skeleton";
 import { BottomNav, DesktopNav } from "@/components/layout/navigation";
 import { useUIStore } from "@/stores/ui";
 import { movies } from "@/lib/api";
 import type { TrendingMovie, MovieSummary } from "@/types/api";
+
+const MovieDetail = dynamic(
+  () =>
+    import("@/components/movie/movie-detail").then((m) => ({
+      default: m.MovieDetail,
+    })),
+  { ssr: false },
+);
 
 function trendingToSummary(t: TrendingMovie): MovieSummary {
   return {
@@ -109,11 +117,12 @@ export default function HomePage() {
           trending &&
           trending.length > 0 && (
             <ScrollRow title="Trending Now">
-              {trending.map((movie) => (
+              {trending.map((movie, i) => (
                 <MovieCard
                   key={movie.tmdb_id}
                   movie={trendingToSummary(movie)}
                   onClick={() => openDetail(trendingToSummary(movie))}
+                  priority={i < 4}
                 />
               ))}
             </ScrollRow>

@@ -56,14 +56,17 @@ export function BottomNav() {
   )?.key ?? "home";
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden" aria-label="Main navigation">
       <div className="bg-bg-secondary/80 backdrop-blur-xl border-t border-glass-border">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+        <div className="flex items-center justify-around h-16 max-w-lg mx-auto" role="tablist">
           {tabs.map((tab) => {
             const isActive = tab.key === activeKey;
             return (
               <button
                 key={tab.key}
+                role="tab"
+                aria-selected={isActive}
+                aria-label={tab.label}
                 onClick={() => router.push(tab.href)}
                 className={cn(
                   "relative flex flex-col items-center justify-center w-16 h-full gap-0.5 transition-colors",
@@ -77,7 +80,7 @@ export function BottomNav() {
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
                 )}
-                {tab.icon}
+                <span aria-hidden="true">{tab.icon}</span>
                 <span className="text-[10px] font-medium">{tab.label}</span>
               </button>
             );
@@ -106,12 +109,13 @@ export function DesktopNav() {
           FilmMatch AI
         </button>
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1" aria-label="Main navigation">
           {tabs.map((tab) => {
             const isActive = tab.key === activeKey;
             return (
               <button
                 key={tab.key}
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => router.push(tab.href)}
                 className={cn(
                   "relative px-4 py-2 rounded-lg text-sm font-medium transition-colors",
