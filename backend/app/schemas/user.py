@@ -24,3 +24,15 @@ class WatchHistoryItem(BaseModel):
     status: str
     rating: int | None = None
     created_at: str
+
+
+class WatchRating(BaseModel):
+    rating: int  # 1-5
+    status: str = "watched"
+
+
+class FeedbackSubmit(BaseModel):
+    type: str  # "nps" | "satisfaction"
+    value: int  # 1-10 for NPS, 1-5 for satisfaction
+    comment: str | None = None
+    session_id: str | None = None
