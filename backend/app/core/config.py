@@ -30,6 +30,11 @@ class Settings(BaseSettings):
 
     # Rate Limiting
     rate_limit_per_minute: int = 30
+    rate_limit_recommendations_per_minute: int = 10
+
+    # Monitoring
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.1
 
     # TMDB
     tmdb_base_url: str = "https://api.themoviedb.org/3"

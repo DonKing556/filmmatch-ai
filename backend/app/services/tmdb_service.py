@@ -6,6 +6,7 @@ import httpx
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError
 from app.core.logging import get_logger
+from app.core.metrics import TMDB_REQUESTS_TOTAL
 
 logger = get_logger("tmdb")
 
@@ -80,8 +81,10 @@ class TMDBService:
             try:
                 response = await client.get(endpoint, params=params or {})
                 response.raise_for_status()
+                TMDB_REQUESTS_TOTAL.labels(endpoint=endpoint, status="success").inc()
                 return response.json()
             except httpx.HTTPStatusError as e:
+                TMDB_REQUESTS_TOTAL.labels(endpoint=endpoint, status=str(e.response.status_code)).inc()
                 logger.error(
                     "tmdb_api_error",
                     endpoint=endpoint,
@@ -93,6 +96,7 @@ class TMDBService:
                     raise ExternalServiceError("TMDB", f"HTTP {e.response.status_code}")
                 last_error = e
             except httpx.RequestError as e:
+                TMDB_REQUESTS_TOTAL.labels(endpoint=endpoint, status="connection_error").inc()
                 logger.error(
                     "tmdb_connection_error",
                     endpoint=endpoint,

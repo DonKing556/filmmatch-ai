@@ -8,6 +8,12 @@ import anthropic
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.metrics import (
+    CLAUDE_FALLBACK_TOTAL,
+    CLAUDE_REQUESTS_TOTAL,
+    RECOMMENDATION_LATENCY,
+    RECOMMENDATIONS_TOTAL,
+)
 from app.core.redis import RedisCache, SessionStore
 from app.schemas.recommendation import (
     MovieSummary,
@@ -474,6 +480,9 @@ async def get_recommendation(
     )
 
     # Step 3: Call Claude with prompt caching on system prompt (with retry)
+    import time as _time
+    _start = _time.monotonic()
+
     client = _get_client()
     raw_text = None
     total_tokens = 0
@@ -489,6 +498,7 @@ async def get_recommendation(
             )
             raw_text = response.content[0].text
             total_tokens = response.usage.input_tokens + response.usage.output_tokens
+            CLAUDE_REQUESTS_TOTAL.labels(model=model, status="success").inc()
 
             # Log cache savings if available
             cache_creation = getattr(response.usage, "cache_creation_input_tokens", 0) or 0
@@ -502,6 +512,7 @@ async def get_recommendation(
                 )
             break
         except Exception as e:
+            CLAUDE_REQUESTS_TOTAL.labels(model=model, status="error").inc()
             logger.error(
                 "claude_api_error",
                 model=model,
@@ -516,6 +527,7 @@ async def get_recommendation(
 
     # Step 4: Parse and validate response (or fallback)
     if ai_failed or raw_text is None:
+        CLAUDE_FALLBACK_TOTAL.inc()
         logger.warning("claude_fallback_activated", candidates=len(candidates))
         sorted_candidates = sorted(candidates, key=lambda c: c.vote_average, reverse=True)
         result = RecommendationResponse(
@@ -557,6 +569,12 @@ async def get_recommendation(
         }
         await session_store.set(session_id, session_data)
 
+    _elapsed = _time.monotonic() - _start
+    RECOMMENDATION_LATENCY.labels(mode=request.mode).observe(_elapsed)
+    RECOMMENDATIONS_TOTAL.labels(
+        mode=request.mode, model=model, complexity_tier=complexity.tier
+    ).inc()
+
     logger.info(
         "recommendation_complete",
         session_id=session_id,
@@ -565,6 +583,7 @@ async def get_recommendation(
         candidates=len(candidates),
         picks=1 + len(result.additional_picks),
         complexity_tier=complexity.tier,
+        latency_seconds=round(_elapsed, 2),
     )
 
     return result
