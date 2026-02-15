@@ -15,7 +15,7 @@ import type {
   TasteProfile,
 } from "@/types/api";
 
-const BASE = "/api";
+const BASE = "/api/v1";
 
 class ApiError extends Error {
   constructor(
@@ -113,27 +113,27 @@ export const users = {
     return request<UserResponse>("/users/me");
   },
   updatePreferences(prefs: PreferencesUpdate) {
-    return request<PreferencesUpdate>("/users/preferences", {
+    return request<PreferencesUpdate>("/users/me/preferences", {
       method: "PATCH",
       body: JSON.stringify(prefs),
     });
   },
   watchHistory() {
-    return request<WatchHistoryItem[]>("/users/history");
+    return request<WatchHistoryItem[]>("/users/me/history");
   },
   addToWatchlist(tmdbId: number) {
-    return request<void>("/users/watchlist", {
+    return request<void>("/users/me/watchlist", {
       method: "POST",
       body: JSON.stringify({ tmdb_id: tmdbId }),
     });
   },
   removeFromWatchlist(tmdbId: number) {
-    return request<void>(`/users/watchlist/${tmdbId}`, {
+    return request<void>(`/users/me/watchlist/${tmdbId}`, {
       method: "DELETE",
     });
   },
   tasteProfile() {
-    return request<TasteProfile>("/users/taste-profile");
+    return request<TasteProfile>("/users/me/taste-profile");
   },
   rateMovie(tmdbId: number, rating: number) {
     return request<{ message: string }>(`/users/me/watchlist/${tmdbId}/rate`, {
@@ -153,25 +153,25 @@ export const users = {
 
 export const recommend = {
   create(req: RecommendationRequest) {
-    return requestWithRetry<RecommendationResponse>("/recommend/create", {
+    return requestWithRetry<RecommendationResponse>("/recommendations", {
       method: "POST",
       body: JSON.stringify(req),
     });
   },
   refine(sessionId: string, req: NarrowRequest) {
     return requestWithRetry<RecommendationResponse>(
-      `/recommend/${sessionId}/refine`,
+      `/recommendations/${sessionId}/refine`,
       { method: "POST", body: JSON.stringify(req) },
     );
   },
   react(sessionId: string, req: ReactionRequest) {
-    return request<void>(`/recommend/${sessionId}/react`, {
+    return request<void>(`/recommendations/${sessionId}/react`, {
       method: "POST",
       body: JSON.stringify(req),
     });
   },
   select(sessionId: string, req: SelectionRequest) {
-    return request<void>(`/recommend/${sessionId}/select`, {
+    return request<void>(`/recommendations/${sessionId}/select`, {
       method: "POST",
       body: JSON.stringify(req),
     });
@@ -188,7 +188,7 @@ export const recommend = {
       complexity_tier: string;
       turn_count: number;
       shareable_text: string;
-    }>(`/recommend/${sessionId}/receipt`);
+    }>(`/recommendations/${sessionId}/receipt`);
   },
 };
 
@@ -207,7 +207,7 @@ export const movies = {
 
 export const groups = {
   create(name?: string) {
-    return request<GroupResponse>("/groups/create", {
+    return request<GroupResponse>("/groups", {
       method: "POST",
       body: JSON.stringify({ name }),
     });
