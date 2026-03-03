@@ -113,6 +113,15 @@ async def warmup(cache: RedisCache = Depends(get_cache)):
     }
 
 
+@router.post("/sync-movies")
+async def sync_movies():
+    """Manually trigger TMDB movie catalog sync."""
+    from app.services.sync_service import sync_tmdb_catalog
+
+    result = await sync_tmdb_catalog()
+    return {"status": "ok", **result}
+
+
 @router.get("/launch-check")
 async def launch_check(cache: RedisCache = Depends(get_cache)):
     """Comprehensive pre-launch readiness report.

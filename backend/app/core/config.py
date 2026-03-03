@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 30
     rate_limit_recommendations_per_minute: int = 10
 
+    # Email (Resend)
+    resend_api_key: str = ""
+    resend_from_email: str = "FilmMatch <noreply@filmmatch.ai>"
+    frontend_url: str = "http://localhost:3000"
+
     # Monitoring
     sentry_dsn: str = ""
     sentry_traces_sample_rate: float = 0.1
@@ -39,10 +44,20 @@ class Settings(BaseSettings):
     # TMDB
     tmdb_base_url: str = "https://api.themoviedb.org/3"
     tmdb_image_base_url: str = "https://image.tmdb.org/t/p"
+    tmdb_sync_enabled: bool = True
+    tmdb_sync_hour: int = 3  # UTC hour for nightly sync
 
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def async_database_url(self) -> str:
+        """Transform DATABASE_URL for asyncpg (Railway provides postgresql://)."""
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

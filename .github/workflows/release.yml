@@ -50,17 +50,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
       - name: Extract version
         id: version
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Deploy to production
+      - name: Deploy backend to Railway (production)
         env:
-          DEPLOY_HOST: ${{ secrets.PRODUCTION_HOST }}
-          DEPLOY_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
-          IMAGE_TAG: ${{ steps.version.outputs.tag }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_PRODUCTION_TOKEN }}
+        run: cd backend && railway up --service filmmatch-backend
+
+      - name: Post-deploy verification
+        env:
+          BACKEND_URL: ${{ vars.PRODUCTION_BACKEND_URL }}
         run: |
-          echo "Deploying $IMAGE_TAG to production..."
-          # Replace with actual deploy command:
-          # ssh -i $DEPLOY_KEY deploy@$DEPLOY_HOST "cd /app && IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
-          echo "Production deploy complete for $IMAGE_TAG"
+          sleep 15
+          curl -sf "$BACKEND_URL/api/v1/health"
+          curl -sf -X POST "$BACKEND_URL/api/v1/ops/warmup"
+          curl -sf "$BACKEND_URL/api/v1/ops/launch-check"

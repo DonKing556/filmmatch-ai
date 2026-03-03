@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           </Link>
           <h1 className="text-3xl font-bold">Privacy Policy</h1>
           <p className="text-text-tertiary text-sm">
-            Last updated: February 15, 2026
+            Last updated: March 3, 2026
           </p>
         </div>
 

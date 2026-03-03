@@ -92,6 +92,48 @@ alembic downgrade <revision_id>
 
 **Important**: Only roll back migrations if the new migration caused data issues. Most deployments are backwards-compatible and don't require migration rollback.
 
+## Infrastructure
+
+| Component | Provider | Notes |
+|---|---|---|
+| Backend | Railway | Docker container, auto-deploys from `backend/` |
+| Database | Railway Postgres | Managed PostgreSQL 16, auto-backup |
+| Cache | Railway Redis | Managed Redis 7, 128MB |
+| Frontend | Vercel | Native Next.js 15, auto-deploys on push to main |
+| Email | Resend | Magic link emails, 100/day free tier |
+| Error Tracking | Sentry | Backend + Frontend, 10% trace sample |
+| Analytics | PostHog | Product metrics, user flows |
+
+## Monitoring
+
+### Railway Dashboard
+Railway provides built-in metrics for each service:
+- CPU and memory usage
+- Network I/O
+- Deploy logs and health check status
+
+### Prometheus Metrics
+The backend exposes custom metrics at `GET /metrics`:
+- `filmmatch_recommendations_total` — by mode, model, complexity tier
+- `filmmatch_recommendation_latency_seconds` — histogram (P50/P95/P99)
+- `filmmatch_claude_requests_total` — by model and status
+- `filmmatch_tmdb_requests_total` — by endpoint and status
+- `filmmatch_tmdb_cache_hits_total` / `misses_total`
+- `filmmatch_rate_limit_hits_total` — by route
+
+### Grafana Cloud (optional)
+1. Create a free Grafana Cloud account
+2. Add a Prometheus data source: `https://<railway-url>/metrics`
+3. Create dashboards for recommendation latency, API costs, cache hit rates
+
+## Post-Deploy Script
+
+```bash
+BACKEND_URL=https://your-backend.railway.app ./scripts/post-deploy.sh
+```
+
+This runs health check, cache warmup, movie sync, and launch readiness check.
+
 ## Monitoring Endpoints
 
 | Endpoint | Purpose |
@@ -101,6 +143,7 @@ alembic downgrade <revision_id>
 | `GET /api/v1/ops/stats` | Operational statistics |
 | `GET /api/v1/ops/launch-check` | Comprehensive pre-launch report |
 | `POST /api/v1/ops/warmup` | Populate caches with trending data |
+| `POST /api/v1/ops/sync-movies` | Manually trigger TMDB catalog sync |
 | `GET /metrics` | Prometheus metrics |
 
 ## Key Metrics to Monitor

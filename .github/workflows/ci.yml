@@ -113,14 +113,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to staging
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend to Railway
         env:
-          DEPLOY_HOST: ${{ secrets.STAGING_HOST }}
-          DEPLOY_KEY: ${{ secrets.STAGING_SSH_KEY }}
-          IMAGE_TAG: ${{ github.sha }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: cd backend && railway up --service filmmatch-backend
+
+      - name: Post-deploy verification
+        env:
+          BACKEND_URL: ${{ vars.RAILWAY_BACKEND_URL }}
         run: |
-          echo "Deploying $IMAGE_TAG to staging..."
-          # Deploy via SSH or kubectl/docker compose pull
-          # This is a placeholder — replace with your actual deploy command:
-          # ssh -i $DEPLOY_KEY deploy@$DEPLOY_HOST "cd /app && IMAGE_TAG=$IMAGE_TAG docker compose pull && docker compose up -d"
-          echo "Staging deploy complete for $IMAGE_TAG"
+          sleep 10
+          curl -sf "$BACKEND_URL/api/v1/health" || echo "Health check pending..."
+          curl -sf -X POST "$BACKEND_URL/api/v1/ops/warmup" || echo "Warmup pending..."

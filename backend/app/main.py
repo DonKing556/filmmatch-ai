@@ -33,7 +33,29 @@ async def lifespan(app: FastAPI):
     setup_logging()
     _init_sentry()
     logger.info("starting", environment=settings.environment)
+
+    # Start background scheduler for nightly TMDB sync
+    scheduler = None
+    if settings.tmdb_sync_enabled:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from app.services.sync_service import sync_tmdb_catalog
+
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(
+            sync_tmdb_catalog,
+            "cron",
+            hour=settings.tmdb_sync_hour,
+            minute=0,
+            id="tmdb_nightly_sync",
+            replace_existing=True,
+        )
+        scheduler.start()
+        logger.info("scheduler_started", sync_hour=settings.tmdb_sync_hour)
+
     yield
+
+    if scheduler:
+        scheduler.shutdown()
     await tmdb_service.close()
     await close_redis()
     logger.info("shutdown_complete")

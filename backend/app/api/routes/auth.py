@@ -19,6 +19,7 @@ from app.services.auth_service import (
     get_or_create_user,
     verify_magic_link_token,
 )
+from app.core.config import settings
 from app.core.exceptions import AuthenticationError
 from app.core.logging import get_logger
 
@@ -37,10 +38,17 @@ async def request_magic_link(request: MagicLinkRequest, req: Request):
         request_id=getattr(req.state, "request_id", None),
         detail=request.email,
     )
-    return {
-        "message": "Magic link created",
-        "token": token,  # Remove in production — send via email instead
-    }
+    response: dict = {"message": "If an account exists, a magic link has been sent."}
+
+    if settings.environment == "development":
+        # In dev mode, return token directly for testing
+        response["token"] = token
+    else:
+        from app.services.email_service import send_magic_link_email
+
+        await send_magic_link_email(request.email, token)
+
+    return response
 
 
 @router.post("/verify", response_model=TokenResponse)
