@@ -435,6 +435,7 @@ async def get_recommendation(
     primary_user = request.users[0]
     year_min = primary_user.year_range.min if primary_user.year_range else None
     year_max = primary_user.year_range.max if primary_user.year_range else None
+    mood = primary_user.mood if hasattr(primary_user, "mood") and primary_user.mood else None
 
     # Step 1: Fetch verified candidates from TMDB
     logger.info(
@@ -442,12 +443,14 @@ async def get_recommendation(
         genres=all_likes,
         exclude=all_dislikes,
         year_range=(year_min, year_max),
+        mood=mood,
     )
     candidates = await tmdb_service.fetch_candidates(
         genre_names=all_likes if all_likes else None,
         exclude_genre_names=all_dislikes if all_dislikes else None,
         year_min=year_min,
         year_max=year_max,
+        mood=mood,
         max_candidates=30,
     )
 
