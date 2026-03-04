@@ -113,6 +113,21 @@ async def warmup(cache: RedisCache = Depends(get_cache)):
     }
 
 
+@router.post("/flush-cache")
+async def flush_cache():
+    """Flush all recommendation pattern caches from Redis."""
+    try:
+        redis = await get_redis()
+        keys = await redis.keys("rec:pattern:*")
+        if keys:
+            await redis.delete(*keys)
+        logger.info("cache_flushed", keys_deleted=len(keys))
+        return {"status": "ok", "keys_deleted": len(keys)}
+    except Exception as e:
+        logger.error("cache_flush_failed", error=str(e))
+        return {"status": "error", "error": str(e)}
+
+
 @router.post("/sync-movies")
 async def sync_movies():
     """Manually trigger TMDB movie catalog sync."""
