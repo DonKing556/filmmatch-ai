@@ -606,16 +606,69 @@ async def refine_recommendation(
         from app.core.exceptions import NotFoundError
         raise NotFoundError("Session", session_id)
 
-    # Build condensed context (not raw history)
-    context = f"""Previous session context:
-- User preferences: {json.dumps(session_data['preferences'])}
-- Movies already suggested: {session_data['presented_tmdb_ids']}
-- User kept (liked): {keep_ids}
-- User rejected: {reject_ids}
-- Current feedback: {feedback}
+    # Re-fetch remaining candidates with full details
+    all_rejected = set(reject_ids) | set(session_data.get("presented_tmdb_ids", []))
+    remaining_ids = set(session_data["candidate_tmdb_ids"]) - all_rejected
+    # Also keep any that were explicitly kept
+    remaining_ids.update(keep_ids)
 
-Provide refined recommendations from the original candidate set, excluding rejected movies.
-Respond in the same JSON format as before."""
+    remaining_candidates = []
+    for tmdb_id in remaining_ids:
+        try:
+            details = await tmdb_service.get_movie_details(tmdb_id)
+            candidate = await tmdb_service.enrich_movie({"id": tmdb_id, **details})
+            remaining_candidates.append(candidate)
+        except Exception:
+            continue
+
+    # If we've exhausted the original pool, fetch fresh candidates
+    if len(remaining_candidates) < 6:
+        logger.info("refine_fetching_fresh_candidates", remaining=len(remaining_candidates))
+        prefs = session_data.get("preferences", {})
+        users = prefs.get("users", [{}])
+        primary = users[0] if users else {}
+        mood = primary.get("mood")
+        likes = primary.get("likes_genres", [])
+        dislikes = primary.get("dislikes_genres", [])
+        year_range = primary.get("year_range")
+        year_min = year_range.get("min") if year_range else None
+        year_max = year_range.get("max") if year_range else None
+
+        fresh = await tmdb_service.fetch_candidates(
+            genre_names=likes or None,
+            exclude_genre_names=dislikes or None,
+            year_min=year_min,
+            year_max=year_max,
+            mood=mood,
+            max_candidates=30,
+        )
+        # Filter out anything already shown
+        for c in fresh:
+            if c.tmdb_id not in all_rejected and c.tmdb_id not in {rc.tmdb_id for rc in remaining_candidates}:
+                remaining_candidates.append(c)
+                if len(remaining_candidates) >= 20:
+                    break
+
+    if not remaining_candidates:
+        from app.core.exceptions import FilmMatchError
+        raise FilmMatchError("No more candidates available. Try starting a new session.", 422)
+
+    # Build prompt with actual candidate descriptions
+    candidates_text = "\n".join(c.to_prompt_string() for c in remaining_candidates)
+    kept_text = f"Movies the user liked: {keep_ids}" if keep_ids else "The user rejected all previous suggestions."
+    context = f"""REFINEMENT REQUEST — the user has swiped through previous picks.
+
+{kept_text}
+Rejected movie IDs: {reject_ids}
+Feedback: {feedback}
+User preferences: {json.dumps(session_data['preferences'])}
+
+Here are the remaining verified movie candidates to choose from:
+{candidates_text}
+
+Pick the best match and 5 alternatives from these candidates ONLY.
+{"Prioritize movies similar to the kept ones." if keep_ids else "Try a different angle — the user didn't connect with the previous batch."}
+Respond in the same JSON format."""
 
     model = session_data.get("model_used", "claude-haiku-4-5-20250514")
     client = _get_client()
@@ -628,24 +681,16 @@ Respond in the same JSON format as before."""
     )
 
     raw_text = response.content[0].text
-
-    # Re-fetch candidates that weren't rejected
-    remaining_ids = set(session_data["candidate_tmdb_ids"]) - set(reject_ids)
-    remaining_candidates = []
-    for tmdb_id in remaining_ids:
-        try:
-            details = await tmdb_service.get_movie_details(tmdb_id)
-            candidate = await tmdb_service.enrich_movie({"id": tmdb_id, **details})
-            remaining_candidates.append(candidate)
-        except Exception:
-            continue
-
     result = _parse_ai_response(raw_text, remaining_candidates, session_id, model)
 
     # Update session
     session_data["turn_count"] = session_data.get("turn_count", 1) + 1
     session_data["presented_tmdb_ids"].extend(
         [result.best_pick.tmdb_id] + [p.tmdb_id for p in result.additional_picks]
+    )
+    # Add fresh candidates to the pool
+    session_data["candidate_tmdb_ids"] = list(
+        set(session_data["candidate_tmdb_ids"]) | {c.tmdb_id for c in remaining_candidates}
     )
     await session_store.set(session_id, session_data)
 
