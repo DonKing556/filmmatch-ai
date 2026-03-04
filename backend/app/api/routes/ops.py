@@ -199,11 +199,12 @@ async def launch_check(cache: RedisCache = Depends(get_cache)):
     if settings.magic_link_secret == "change-me":
         report["warnings"].append("MAGIC_LINK_SECRET is still default — change for production")
     if not settings.sentry_dsn and settings.is_production:
-        report["warnings"].append("SENTRY_DSN not set in production")
+        report["warnings"].append("SENTRY_DSN not set in production (optional)")
 
-    report["checks"]["config"] = "ok" if not any(
-        "not set" in w for w in report["warnings"]
-    ) else "warnings"
+    # Separate critical warnings from optional ones
+    critical_warnings = [w for w in report["warnings"] if "(optional)" not in w]
+
+    report["checks"]["config"] = "ok" if not critical_warnings else "warnings"
 
     # Summary
     all_ok = all(
@@ -211,7 +212,7 @@ async def launch_check(cache: RedisCache = Depends(get_cache)):
         for k, v in report["checks"].items()
         if k != "config"
     )
-    report["ready"] = all_ok and len(report["warnings"]) == 0
+    report["ready"] = all_ok and len(critical_warnings) == 0
     report["go_no_go"] = "GO" if report["ready"] else "NO-GO"
 
     return report
